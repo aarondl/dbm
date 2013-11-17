@@ -33,8 +33,7 @@ Commands:
 var (
 	flagset = flag.NewFlagSet("flags", flag.ExitOnError)
 	isRoot  = flagset.Bool("isroot", false,
-		`Set the current working dir as root if set true, otherwise find the `+
-			`first vcs root and use that.`)
+		`If true use cwd as root, otherwise find VCS root.`)
 	environ = flagset.String("env", "development",
 		`Set the enviroment to choose from the config file.`)
 	verbose = flagset.Bool("v", false, "Controls verbose output.")
