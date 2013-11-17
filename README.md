@@ -8,7 +8,7 @@ more structure over how databases are kept up to date inside a team.
 
 __Supported Databases:__ MySQL, Sqlite3
 
-__Warning:__ When you run the create command a bookeeping table is created
+__Warning:__ When you run the create command a bookkeeping table is created
 (tracked_migrations), if you remove this table the tool has no idea what
 migrations have been run and chaos will ensue!
 
