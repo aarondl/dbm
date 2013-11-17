@@ -33,7 +33,7 @@ func NewEngine(conf *DbConfig) (SqlEngine, error) {
 	case "mysql":
 		return NewMySQL(conf)
 	default:
-		return nil, fmt.Errorf("Unknown db engine:", conf.Kind)
+		return nil, fmt.Errorf("Unknown db engine: %s", conf.Kind)
 	}
 }
 
@@ -100,11 +100,11 @@ func (m *MySQL) DropDB() error {
 
 func (m *MySQL) makeDSN() {
 	var dsn bytes.Buffer
-	if len(m.Username) != 0 {
-		dsn.WriteString(m.Username)
-		if len(m.Password) != 0 {
+	if len(m.User) != 0 {
+		dsn.WriteString(m.User)
+		if len(m.Pass) != 0 {
 			dsn.WriteByte(':')
-			dsn.WriteString(m.Password)
+			dsn.WriteString(m.Pass)
 		}
 		dsn.WriteByte('@')
 	}

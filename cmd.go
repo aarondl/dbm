@@ -1,11 +1,16 @@
+/*
+Package dbm does simple database management by creating and running migration
+files.
+
+Please see the README.md or use the flag -h for more information.
+*/
 package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/aarondl/paths"
-	//"github.com/davecgh/go-spew/spew"
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,6 +23,7 @@ const (
 
 const usageDesc = `dbm command [flags] commandArgs
 Commands:
+    init                    - Create a basic configuration file.
     new      [name]...      - Create a new named migration.
     migrate  [step]         - Migrate [step] forward, migrate all if no step number given.
     rollback [step]         - Rollback [step] backward, rollback all if no step number given.
@@ -28,7 +34,7 @@ var (
 	flagset = flag.NewFlagSet("flags", flag.ExitOnError)
 	isRoot  = flagset.Bool("isroot", false,
 		`Set the current working dir as root if set true, otherwise find the `+
-			`first git root and use that.`)
+			`first vcs root and use that.`)
 	environ = flagset.String("env", "development",
 		`Set the enviroment to choose from the config file.`)
 	verbose = flagset.Bool("v", false, "Controls verbose output.")
@@ -45,11 +51,11 @@ var (
 )
 
 type DbConfig struct {
-	Name     string
-	Kind     string
-	Host     string
-	Username string
-	Password string
+	Name string
+	Kind string
+	Host string
+	User string
+	Pass string
 }
 
 var commands = map[string]func([]string){
@@ -58,6 +64,7 @@ var commands = map[string]func([]string){
 	"rollback": doRollback,
 	"create":   createDatabase,
 	"drop":     dropDatabase,
+	"init":     initialize,
 }
 
 func main() {
@@ -83,6 +90,14 @@ func main() {
 
 	// Set the working directory.
 	setRoot()
+	fmt.Println(workingDir)
+
+	// We have to initialize here since we can't load the config if someone
+	// wants to create it!
+	if cmd == "init" {
+		commands[cmd](cmdArgs)
+		return
+	}
 
 	// Parse the config
 	configPath := filepath.Join(workingDir, _DATA_DIR, _CONFIG)
@@ -94,10 +109,8 @@ func main() {
 		exitLn("No such configured environment:", *environ)
 	}
 
-	fmt.Println(workingDir)
-
-	handler := commands[cmd]
-	handler(cmdArgs)
+	// Dispatch the command handler.
+	commands[cmd](cmdArgs)
 }
 
 func printUsage() {
@@ -126,27 +139,21 @@ func exitLn(args ...interface{}) {
 
 func setRoot() {
 	var err error
-	wd, err := os.Getwd()
-	if err != nil {
+	var wd string
+	if wd, err = os.Getwd(); err != nil {
 		exitLn("Could not get working dir:", err)
 	}
 
-	if !*isRoot {
-		for p := wd; len(p) != 0; p = paths.WalkUpPath(p) {
-			yes, err := paths.DirExists(filepath.Join(p, ".git"))
-			if err != nil {
-				exitLn("Error searching for git root:", err)
-			} else if yes {
-				workingDir = p
-				break
-			}
-		}
-		if len(workingDir) == 0 {
-			exitLn("Error: Could not find git root.")
-		}
-	} else {
+	if *isRoot {
 		workingDir = wd
+		return
 	}
+
+	var p string
+	if _, p, err = paths.FindVCSRoot(wd); err != nil || len(p) == 0 {
+		exitLn("Error: Could not find vcs root.")
+	}
+	workingDir = p
 }
 
 func loadConfig(configPath string) {
