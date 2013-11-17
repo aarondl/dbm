@@ -12,19 +12,29 @@ import (
 )
 
 const (
-	_MIG_DIR = "migrate"
+	_MIG_DIR       = "migrate"
+	_MIG_SEPERATOR = "!========================!"
 )
 
+// Constants for creation of migrations.
 const (
 	defMigrationName = "new_migration"
 	timeLayout       = "20060102150405_"
 )
 
+// migLayout defines the layout for an SQL file
+const migLayout = `
+` +
+	`// Up migration code goes here
+` +
+	_MIG_SEPERATOR +
+	`
+// Down migration code goes here
+`
+
 var (
 	rgxMigrate        = regexp.MustCompile(`^([a-z]|[a-z][a-z_]*[a-z])$`)
-	migrationTemplate = template.Must(
-		template.New("mig").Parse("use {{.}};\n\n// SQL Migration code here"),
-	)
+	migrationTemplate = template.Must(template.New("mig").Parse(migLayout))
 )
 
 func newMigration(args []string) {
@@ -34,8 +44,7 @@ func newMigration(args []string) {
 	if len(args) > 0 {
 		migName = strings.Join(args, "_")
 		if !rgxMigrate.MatchString(migName) {
-			fmt.Println("Invalid migration name:", migName)
-			os.Exit(1)
+			exitLn("Invalid migration name:", migName)
 		}
 	}
 
@@ -45,19 +54,16 @@ func newMigration(args []string) {
 	file := filepath.Join(dir, migName)
 
 	if _, err := paths.EnsureDirectory(dir); err != nil {
-		fmt.Println("Could not create migration directory:", err)
-		os.Exit(1)
+		exitLn("Could not create migration directory:", err)
 	}
 
 	var f *os.File
 	if f, err = os.Create(file); err != nil {
-		fmt.Println("Could not create migration file:", err)
-		os.Exit(1)
+		exitLn("Could not create migration file:", err)
 	}
 
-	if err = migrationTemplate.Execute(f, config[*environ].Name); err != nil {
-		fmt.Println("Error writing to file:", err)
-		os.Exit(1)
+	if err = migrationTemplate.Execute(f, config.Name); err != nil {
+		exitLn("Error writing to file:", err)
 	}
 
 	fmt.Println("Create:", migName)
