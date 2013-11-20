@@ -6,7 +6,7 @@ Although dbm has no advanced generation capabilities and is not as database
 agnostic as one might like it should do for a small project to have a little
 more structure over how databases are kept up to date inside a team.
 
-__Supported Databases:__ MySQL, Sqlite3
+__Supported Databases:__ MySQL, Sqlite3, Postgres
 
 __Warning:__ When you run the create command a bookkeeping table is created
 (tracked_migrations), if you remove this table the tool has no idea what
