@@ -277,9 +277,6 @@ func (s *Sqlite3) DeleteMigration(mig string) error {
 	return deleteTrackTable(s, sqlDelMig, mig)
 }
 
-func (s *Sqlite3) makeDSN() {
-}
-
 func createTrackTable(engine SqlEngine) error {
 	var err error
 	if _, err = engine.Exec(sqlCreateTrackTable); err != nil {
