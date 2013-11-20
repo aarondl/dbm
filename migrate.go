@@ -13,12 +13,12 @@ import (
 	"strings"
 )
 
-const fmtNoMatchError = `Error: Migrations are out of sync
+const errFmtNoMatch = `Error: Migrations are out of sync
 Possible problems:
    Migration file starting with "%s" missing OR
    Migration file created after migrations run: %s
 `
-const fmtOutOfSyncError = `Error: Migrations are out of sync
+const errOutOfSync = `Error: Migrations are out of sync
 The following migration files are missing:`
 
 var rgxUpDown = regexp.MustCompile(`(?s)(.*?)(?:\s` + _MIG_SEPERATOR + `\s(.*))?`)
@@ -96,18 +96,10 @@ func migrate(engine SqlEngine, migration string, rollback bool) {
 		}
 
 		runMigrationPart(engine, down)
-
-		_, err = engine.Exec(
-			fmt.Sprintf("DELETE FROM %s WHERE migration=?;", _MIG_TABLE_NAME),
-			migFormat(migration),
-		)
+		err = engine.DeleteMigration(migFormat(migration))
 	} else {
 		runMigrationPart(engine, up)
-
-		_, err = engine.Exec(
-			fmt.Sprintf("INSERT INTO %s (migration) VALUES(?);", _MIG_TABLE_NAME),
-			migFormat(migration),
-		)
+		err = engine.AddMigration(migFormat(migration))
 	}
 	if err != nil {
 		exitLn("Error updating migration table:", err)
@@ -228,13 +220,13 @@ func ensureRunMigrationsMatch(files, done []string) {
 		}
 
 		if migFormat(files[i]) != done[j] {
-			exitf(fmtNoMatchError, done[j], filepath.Base(files[i]))
+			exitf(errFmtNoMatch, done[j], filepath.Base(files[i]))
 		}
 		i, j = i+1, j+1
 	}
 
 	if doneLeft {
-		fmt.Println(fmtOutOfSyncError)
+		fmt.Println(errOutOfSync)
 		for _, mig := range done[j:] {
 			fmt.Printf("    %s\n", mig)
 		}
@@ -247,12 +239,11 @@ func getMigrationData() (SqlEngine, []string, []string, error) {
 	var err error
 
 	if engine, err = NewEngine(config.Current); err != nil {
-		exitLn("Error connecting to db:", err)
+		exitLn("Error getting handle to db:", err)
 	}
 
-	if err = engine.Use(); err != nil {
-		engine.Close()
-		exitLn("Failed to switch databases:", err)
+	if err = engine.Open(); err != nil {
+		exitLn("Failed to connect to database.", err)
 	}
 
 	if files, err = getMigrations(); err != nil {
