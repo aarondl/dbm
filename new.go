@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/aarondl/dbm/config"
 	"github.com/aarondl/paths"
 	"os"
 	"path/filepath"
@@ -62,7 +63,7 @@ func newMigration(args []string) {
 		exitLn("Could not create migration file:", err)
 	}
 
-	if err = migrationTemplate.Execute(f, config.Name); err != nil {
+	if err = migrationTemplate.Execute(f, config.Current.Name); err != nil {
 		exitLn("Error writing to file:", err)
 	}
 

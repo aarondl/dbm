@@ -1,7 +1,11 @@
 package main
 
+import (
+	"github.com/aarondl/dbm/config"
+)
+
 func createDatabase(args []string) {
-	engine, err := NewEngine(config)
+	engine, err := NewEngine(config.Current)
 	if err != nil {
 		exitLn("Error connecting to db:", err)
 	}
@@ -12,7 +16,7 @@ func createDatabase(args []string) {
 }
 
 func dropDatabase(args []string) {
-	engine, err := NewEngine(config)
+	engine, err := NewEngine(config.Current)
 	if err != nil {
 		exitLn("Error conneting to db:", err)
 	}

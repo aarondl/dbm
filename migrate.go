@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/aarondl/dbm/config"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -195,7 +196,7 @@ func runMigrationPart(engine SqlEngine, part []byte) {
 			}
 			cmd := string(part[lastIndex : i+1])
 			if _, err := engine.Exec(cmd); err != nil {
-				exitf("Error executing statement:\nStmt: %s\nErr: %v", cmd, err)
+				exitf("Error in statement:\nStmt: %s\nErr: %v\n", cmd, err)
 			} else if *verbose {
 				fmt.Println(strings.TrimSpace(cmd))
 			}
@@ -245,7 +246,7 @@ func getMigrationData() (SqlEngine, []string, []string, error) {
 	var files, done []string
 	var err error
 
-	if engine, err = NewEngine(config); err != nil {
+	if engine, err = NewEngine(config.Current); err != nil {
 		exitLn("Error connecting to db:", err)
 	}
 

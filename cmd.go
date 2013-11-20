@@ -9,15 +9,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/BurntSushi/toml"
+	"github.com/aarondl/dbm/config"
 	"github.com/aarondl/paths"
 	"os"
-	"path/filepath"
 	"regexp"
 )
 
 const (
-	_CONFIG   = "config.toml"
 	_DATA_DIR = "db"
 )
 
@@ -45,17 +43,7 @@ var (
 
 var (
 	workingDir string
-	configs    map[string]*DbConfig
-	config     *DbConfig
 )
-
-type DbConfig struct {
-	Name string
-	Kind string
-	Host string
-	User string
-	Pass string
-}
 
 var commands = map[string]func([]string){
 	"new":      newMigration,
@@ -99,13 +87,8 @@ func main() {
 	}
 
 	// Parse the config
-	configPath := filepath.Join(workingDir, _DATA_DIR, _CONFIG)
-	loadConfig(configPath)
-
-	// Set env
-	var ok bool
-	if config, ok = configs[*environ]; !ok {
-		exitLn("No such configured environment:", *environ)
+	if err := config.Load(*environ); err != nil {
+		exitLn("Could not load config:", err)
 	}
 
 	// Dispatch the command handler.
@@ -153,17 +136,4 @@ func setRoot() {
 		exitLn("Error: Could not find vcs root.")
 	}
 	workingDir = p
-}
-
-func loadConfig(configPath string) {
-	if yes, err := paths.FileExists(configPath); err != nil {
-		exitLn("Error: Could not check for config file at:", configPath)
-	} else if !yes {
-		exitLn("Error: No configuration file at:", configPath)
-	}
-
-	var err error
-	if _, err = toml.DecodeFile(configPath, &configs); err != nil {
-		exitLn("Could not decode config file:", err)
-	}
 }

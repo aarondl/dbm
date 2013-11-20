@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/aarondl/dbm/config"
 	"github.com/aarondl/paths"
 	"os"
 	"path/filepath"
@@ -26,7 +27,7 @@ CREATE TABLE IF NOT EXISTS ` + _MIG_TABLE_NAME + ` (
 	migration varchar(255) NOT NULL
 );`
 
-func NewEngine(conf *DbConfig) (SqlEngine, error) {
+func NewEngine(conf *config.DB) (SqlEngine, error) {
 	switch conf.Kind {
 	case "sqlite3":
 		return NewSqlite3(conf)
@@ -47,17 +48,17 @@ type SqlEngine interface {
 }
 
 type MySQL struct {
-	*DbConfig
+	conf *config.DB
 	*sql.DB
 	dsn string
 }
 
-func NewMySQL(d *DbConfig) (*MySQL, error) {
+func NewMySQL(d *config.DB) (*MySQL, error) {
 	if len(d.Name) == 0 {
 		return nil, errors.New("Database must have a name.")
 	}
 
-	m := &MySQL{DbConfig: d}
+	m := &MySQL{conf: d}
 	if err := m.Open(); err != nil {
 		return nil, err
 	}
@@ -74,7 +75,7 @@ func (m *MySQL) Open() error {
 }
 
 func (m *MySQL) CreateDB() error {
-	if _, err := m.Exec(fmt.Sprintf(sqlCreateDB, m.Name)); err != nil {
+	if _, err := m.Exec(fmt.Sprintf(sqlCreateDB, m.conf.Name)); err != nil {
 		return err
 	}
 	if err := m.Use(); err != nil {
@@ -84,7 +85,7 @@ func (m *MySQL) CreateDB() error {
 }
 
 func (m *MySQL) Use() error {
-	if _, err := m.Exec(fmt.Sprintf(sqlUseDB, m.Name)); err != nil {
+	if _, err := m.Exec(fmt.Sprintf(sqlUseDB, m.conf.Name)); err != nil {
 		return err
 	}
 	return nil
@@ -92,7 +93,7 @@ func (m *MySQL) Use() error {
 
 func (m *MySQL) DropDB() error {
 	var err error
-	if _, err = m.Exec(fmt.Sprintf(sqlDropDB, m.Name)); err != nil {
+	if _, err = m.Exec(fmt.Sprintf(sqlDropDB, m.conf.Name)); err != nil {
 		return err
 	}
 	return nil
@@ -100,17 +101,17 @@ func (m *MySQL) DropDB() error {
 
 func (m *MySQL) makeDSN() {
 	var dsn bytes.Buffer
-	if len(m.User) != 0 {
-		dsn.WriteString(m.User)
-		if len(m.Pass) != 0 {
+	if len(m.conf.User) != 0 {
+		dsn.WriteString(m.conf.User)
+		if len(m.conf.Pass) != 0 {
 			dsn.WriteByte(':')
-			dsn.WriteString(m.Pass)
+			dsn.WriteString(m.conf.Pass)
 		}
 		dsn.WriteByte('@')
 	}
-	if len(m.Host) != 0 {
+	if len(m.conf.Host) != 0 {
 		dsn.WriteByte('(')
-		dsn.WriteString(m.Host)
+		dsn.WriteString(m.conf.Host)
 		dsn.WriteByte(')')
 	}
 	dsn.WriteByte('/')
@@ -118,17 +119,17 @@ func (m *MySQL) makeDSN() {
 }
 
 type Sqlite3 struct {
-	*DbConfig
+	conf *config.DB
 	*sql.DB
 	dsn string
 }
 
-func NewSqlite3(d *DbConfig) (*Sqlite3, error) {
+func NewSqlite3(d *config.DB) (*Sqlite3, error) {
 	if len(d.Name) == 0 {
 		return nil, errors.New("Database must have a name.")
 	}
 
-	s := &Sqlite3{DbConfig: d}
+	s := &Sqlite3{conf: d}
 	if err := s.Open(); err != nil {
 		return nil, err
 	}
@@ -161,9 +162,9 @@ func (s *Sqlite3) Use() error {
 }
 
 func (s *Sqlite3) makeDSN() {
-	name := s.Name
-	if !filepath.IsAbs(s.Name) {
-		name = filepath.Join(workingDir, _DATA_DIR, name)
+	name := s.conf.Name
+	if !filepath.IsAbs(s.conf.Name) {
+		name = filepath.Join(workingDir, config.DATA_DIR, name)
 	}
 	if len(filepath.Ext(name)) == 0 {
 		name += ".sqlite3"
