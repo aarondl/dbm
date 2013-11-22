@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/aarondl/dbm/config"
 	"github.com/aarondl/paths"
-	"strings"
 	"os"
 	"path/filepath"
 
@@ -84,13 +82,13 @@ func NewMySQL(d *config.DB) (*MySQL, error) {
 
 func (m *MySQL) Open() error {
 	var err error
-	m.DB, err = sql.Open("mysql", m.makeDSN(true))
+	m.DB, err = sql.Open("mysql", m.conf.DSN())
 	return err
 }
 
 func (m *MySQL) CreateDB() error {
 	var err error
-	if m.DB, err = sql.Open("mysql", m.makeDSN(false)); err != nil {
+	if m.DB, err = sql.Open("mysql", m.conf.DSNnoDB()); err != nil {
 		return err
 	}
 	defer m.Close()
@@ -104,7 +102,7 @@ func (m *MySQL) CreateDB() error {
 
 func (m *MySQL) DropDB() error {
 	var err error
-	if m.DB, err = sql.Open("mysql", m.makeDSN(false)); err != nil {
+	if m.DB, err = sql.Open("mysql", m.conf.DSNnoDB()); err != nil {
 		return err
 	}
 	defer m.Close()
@@ -128,28 +126,6 @@ func (m *MySQL) DeleteMigration(mig string) error {
 	return deleteTrackTable(m, sqlDelMig, mig)
 }
 
-func (m *MySQL) makeDSN(addDbName bool) string {
-	var dsn bytes.Buffer
-	if len(m.conf.User) != 0 {
-		dsn.WriteString(m.conf.User)
-		if len(m.conf.Pass) != 0 {
-			dsn.WriteByte(':')
-			dsn.WriteString(m.conf.Pass)
-		}
-		dsn.WriteByte('@')
-	}
-	if len(m.conf.Host) != 0 {
-		dsn.WriteByte('(')
-		dsn.WriteString(m.conf.Host)
-		dsn.WriteByte(')')
-	}
-	dsn.WriteByte('/')
-	if addDbName {
-		dsn.WriteString(m.conf.Name)
-	}
-	return dsn.String()
-}
-
 type Postgres struct {
 	conf *config.DB
 	*sql.DB
@@ -161,13 +137,13 @@ func NewPostgres(d *config.DB) (*Postgres, error) {
 
 func (p *Postgres) Open() error {
 	var err error
-	p.DB, err = sql.Open("postgres", p.makeDSN(true))
+	p.DB, err = sql.Open("postgres", p.conf.DSN())
 	return err
 }
 
 func (p *Postgres) CreateDB() error {
 	var err error
-	if p.DB, err = sql.Open("postgres", p.makeDSN(false)); err != nil {
+	if p.DB, err = sql.Open("postgres", p.conf.DSNnoDB()); err != nil {
 		return err
 	}
 	defer p.Close()
@@ -181,7 +157,7 @@ func (p *Postgres) CreateDB() error {
 
 func (p *Postgres) DropDB() error {
 	var err error
-	if p.DB, err = sql.Open("postgres", p.makeDSN(false)); err != nil {
+	if p.DB, err = sql.Open("postgres", p.conf.DSNnoDB()); err != nil {
 		return err
 	}
 	defer p.Close()
@@ -205,30 +181,6 @@ func (p *Postgres) DeleteMigration(mig string) error {
 	return deleteTrackTable(p, sqlDelMigPQ, mig)
 }
 
-func (p *Postgres) makeDSN(addDbName bool) string {
-	var params = make([]string, 0)
-	if len(p.conf.User) != 0 {
-		params = append(params, fmt.Sprintf("user='%s'", p.conf.User))
-	}
-	if len(p.conf.Pass) != 0 {
-		params = append(params, fmt.Sprintf("password='%s'", p.conf.Pass))
-	}
-	if len(p.conf.Host) != 0 {
-		splits := strings.Split(p.conf.Host, ":")
-
-		if len(splits) > 0 && len(splits[0]) != 0 {
-			params = append(params, fmt.Sprintf("host='%s'", splits[0]))
-		}
-		if len(splits) > 1 && len(splits[1]) != 0 {
-			params = append(params, fmt.Sprintf("port='%s'", splits[1]))
-		}
-	}
-	if addDbName {
-		params = append(params, fmt.Sprintf("dbname='%s'", p.conf.Name))
-	}
-	return strings.Join(params, " ")
-}
-
 type Sqlite3 struct {
 	conf *config.DB
 	*sql.DB
@@ -236,15 +188,10 @@ type Sqlite3 struct {
 }
 
 func NewSqlite3(d *config.DB) (*Sqlite3, error) {
-	name := d.Name
-	if !filepath.IsAbs(name) {
-		name = filepath.Join(workingDir, config.DATA_DIR, name)
-	}
-	if len(filepath.Ext(name)) == 0 {
-		name += ".sqlite3"
-	}
-
-	return &Sqlite3{conf: d, path: name}, nil
+	return &Sqlite3{
+		conf: d,
+		path: d.DSNSqlite3(!*isRoot),
+	}, nil
 }
 
 func (s *Sqlite3) Open() error {

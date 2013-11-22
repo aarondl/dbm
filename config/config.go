@@ -1,12 +1,19 @@
+/*
+Package config gives access to the dbm configuration file and the ability to
+create connection strings in order to connect with the configured databases.
+*/
 package config
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/aarondl/paths"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // DB is a database configuration.
@@ -116,6 +123,121 @@ func Touch(dir string) error {
 	}
 
 	return nil
+}
+
+// DSN creates a connection string from the database values given.
+// Panics if DB doesn't have a kind of: "mysql", "postgres", or "sqlite3"
+//
+// Different sql adapters will use different kinds of DSN strings. The strings
+// generated here are useful with the following packages:
+// MySQL: github.com/go-sql-driver/mysql
+// Postgres: github.com/lib/pq
+// Sqlite3: code.google.com/p/go-sqlite/go1/sqlite3
+//
+// This will call DB.DSNSqlite3(useVcsRoot=true) if the kind is Sqlite3.
+func (d *DB) DSN() string {
+	return d.dsn(true)
+}
+
+// DSNnoDB is exactly like DSN except it does not connect directly to the
+// database instance, just to the server.
+func (d *DB) DSNnoDB() string {
+	return d.dsn(false)
+}
+
+func (d *DB) dsn(specifyDB bool) string {
+	var dsnstr string
+	switch d.Kind {
+	case "mysql":
+		dsnstr = d.mysqlDSN(specifyDB)
+	case "postgres":
+		dsnstr = d.postgresDSN(specifyDB)
+	case "sqlite3":
+		dsnstr = d.DSNSqlite3(true)
+	default:
+		panic("dbm/config: No such database kind: " + d.Kind)
+	}
+
+	return dsnstr
+}
+
+func (d *DB) mysqlDSN(specifyDB bool) string {
+	var dsn bytes.Buffer
+	if len(d.User) != 0 {
+		dsn.WriteString(d.User)
+		if len(d.Pass) != 0 {
+			dsn.WriteByte(':')
+			dsn.WriteString(d.Pass)
+		}
+		dsn.WriteByte('@')
+	}
+	if len(d.Host) != 0 {
+		dsn.WriteByte('(')
+		dsn.WriteString(d.Host)
+		dsn.WriteByte(')')
+	}
+	dsn.WriteByte('/')
+	if specifyDB {
+		dsn.WriteString(d.Name)
+	}
+	return dsn.String()
+}
+
+func (d *DB) postgresDSN(specifyDB bool) string {
+	var params = make([]string, 0)
+	if len(d.User) != 0 {
+		params = append(params, fmt.Sprintf("user='%s'", d.User))
+	}
+	if len(d.Pass) != 0 {
+		params = append(params, fmt.Sprintf("password='%s'", d.Pass))
+	}
+	if len(d.Host) != 0 {
+		splits := strings.Split(d.Host, ":")
+
+		if len(splits) > 0 && len(splits[0]) != 0 {
+			params = append(params, fmt.Sprintf("host='%s'", splits[0]))
+		}
+		if len(splits) > 1 && len(splits[1]) != 0 {
+			params = append(params, fmt.Sprintf("port='%s'", splits[1]))
+		}
+	}
+	if specifyDB {
+		params = append(params, fmt.Sprintf("dbname='%s'", d.Name))
+	}
+	return strings.Join(params, " ")
+}
+
+// DSNSqlite3 creates the filepath for a sqlite3 file.
+// If the "name" from the config has the file path separator in it then
+// no transformations will be done the path.
+//
+// If there are no path separators then it will check the useVcsRoot value
+// to determine which root directory to use (vcsRoot or cwd). In both cases
+// the result will be ROOT/db/{name}.sqlite3
+func (d *DB) DSNSqlite3(useVcsRoot bool) string {
+	name := d.Name
+	if !strings.ContainsRune(name, filepath.Separator) {
+		var wd string
+		var err error
+		if wd, err = os.Getwd(); err != nil {
+			panic("Could not get working directory.")
+		}
+
+		if useVcsRoot {
+			_, vcsRoot, err := paths.FindVCSRoot(wd)
+			if err != nil || len(vcsRoot) == 0 {
+				panic(fmt.Sprintln("Could not find vcs root:", err))
+			} else {
+				name = filepath.Join(vcsRoot, DATA_DIR, name)
+			}
+		} else {
+			name = filepath.Join(wd, DATA_DIR, name)
+		}
+	}
+	if len(filepath.Ext(name)) == 0 {
+		name += ".sqlite3"
+	}
+	return name
 }
 
 const basicConfig = `[development]
