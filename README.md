@@ -26,14 +26,53 @@ dbm new create products        # Create new migration
 vim db/migrate/20131117212137_create_products.sql # Edit the migration
 dbm migrate                    # Run all migrations
 ```
-_(Note the create step will fail with MySQL unless you've created a user with priveleges
-beforehand or you're using the root user WHICH YOU SHOULD NOT DO)_
-
+_(Note the create step will fail with MySQL unless you've created a user with
+priveleges beforehand or you're using the root user WHICH YOU SHOULD NOT DO)_
 
 If we decide that the last two migrations were no good, we can roll them back:
 ```bash
 dbm rollback -v 2 # Passing -v shows us the sql being run.
 ```
+
+## Connect from Client application
+
+The package config (github.com/aarondl/dbm/config) allows a Go client to load
+the configuration and generate DSN strings easily to connect to a configured
+database instance.
+
+Config file:
+```toml
+[development]
+kind = "postgres"
+name = "dev"
+pass = "supersecretpassword"
+```
+
+```go
+package main
+
+import (
+	"github.com/aarondl/config"
+	"log"
+	_ "github.com/go-sql-driver/mysql"
+	"database/sql"
+)
+
+func main() {
+	if err := config.Load("development"); err != nil {
+		log.Fatalln(err)
+	}
+
+	db, err := sql.Open("postgres", config.Current.DSN())
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	defer db.Close()
+}
+```
+
+See the docs of the config package for more details.
 
 ## Migration Files
 
@@ -42,10 +81,10 @@ to be successfully parsed, as there is actually some basic SQL parsing going on
 in order to separate multiple statements (Go's SQL interface does not allow for
 multiple statements yet).
 
-Up and Down sections are created inside the migration files by using a special token
-on it's own line between the sections. This will be inserted for you when you use
-the new command. It is possible to create a migration with no down method
-(simply delete the special token). However you will be unable to roll any
+Up and Down sections are created inside the migration files by using a special
+token on it's own line between the sections. This will be inserted for you when
+you use the new command. It is possible to create a migration with no down
+method (simply delete the special token). However you will be unable to roll any
 migration back that is missing a down section.
 
 Here is a sample migration file:

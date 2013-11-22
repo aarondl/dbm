@@ -44,7 +44,7 @@ type Configuration map[string]*DB
 var (
 	// AllConfigs is all the environments.
 	AllConfigs Configuration
-	// Current is the currently requested environment.
+	// Current is the config of the requested environment.
 	Current *DB
 )
 
