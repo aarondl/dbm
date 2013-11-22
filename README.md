@@ -36,8 +36,8 @@ dbm rollback -v 2 # Passing -v shows us the sql being run.
 
 ## Connect from Client application
 
-The package config (github.com/aarondl/dbm/config) allows a Go client to load
-the configuration and generate DSN strings easily to connect to a configured
+The config package (github.com/aarondl/dbm/config) allows a Go client to load
+the configuration used by dbm and generate DSN strings to connect to a configured
 database instance.
 
 Config file:
@@ -47,6 +47,8 @@ kind = "postgres"
 name = "dev"
 pass = "supersecretpassword"
 ```
+
+Client file:
 
 ```go
 package main
