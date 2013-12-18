@@ -15,9 +15,13 @@ func makeEngine() *fakeEngine {
 	}
 }
 
-func (f *fakeEngine) Close() error    { return nil }
-func (f *fakeEngine) CreateDB() error { return nil }
-func (f *fakeEngine) DropDB() error   { return nil }
+func (f *fakeEngine) CreateMigrationsTable() error   { return nil }
+func (f *fakeEngine) AddMigration(_ string) error    { return nil }
+func (f *fakeEngine) DeleteMigration(_ string) error { return nil }
+func (f *fakeEngine) Open() error                    { return nil }
+func (f *fakeEngine) Close() error                   { return nil }
+func (f *fakeEngine) CreateDB() error                { return nil }
+func (f *fakeEngine) DropDB() error                  { return nil }
 
 func (f *fakeEngine) Query(_ string, _ ...interface{}) (*sql.Rows, error) {
 	return nil, nil

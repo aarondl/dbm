@@ -88,6 +88,8 @@ func migrate(engine SqlEngine, migration string, rollback bool) {
 		fmt.Println("=====================================")
 		fmt.Println(shortname)
 		fmt.Println("=====================================")
+	} else {
+		fmt.Println(shortname)
 	}
 
 	if rollback {
