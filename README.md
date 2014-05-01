@@ -26,7 +26,7 @@ dbm new create products        # Create new migration
 vim db/migrate/20131117212137_create_products.sql # Edit the migration
 dbm migrate                    # Run all migrations
 ```
-_(Note the create step will fail with MySQL unless you've created a user with
+_(Note the create step will fail with MySQL or Postgres unless you've created a user with
 priveleges beforehand or you're using the root user WHICH YOU SHOULD NOT DO)_
 
 If we decide that the last two migrations were no good, we can roll them back:
@@ -54,7 +54,7 @@ Client file:
 package main
 
 import (
-	"github.com/aarondl/config"
+	"github.com/aarondl/dbm/config"
 	"log"
 	_ "github.com/go-sql-driver/mysql"
 	"database/sql"
