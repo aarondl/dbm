@@ -8,21 +8,24 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/BurntSushi/toml"
-	"github.com/aarondl/paths"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/BurntSushi/toml"
+	"github.com/aarondl/paths"
 )
 
 // DB is a database configuration.
 type DB struct {
-	Name string
-	Kind string
-	Host string
-	User string
-	Pass string
+	Name          string
+	Kind          string
+	Host          string
+	User          string
+	Pass          string
+	SSL           bool
+	SSLSkipVerify bool
 }
 
 const (
@@ -192,17 +195,35 @@ func (d *DB) postgresDSN(specifyDB bool) string {
 		params = append(params, fmt.Sprintf("password='%s'", d.Pass))
 	}
 	if len(d.Host) != 0 {
-		splits := strings.Split(d.Host, ":")
+		if strings.HasPrefix(d.Host, "/") {
+			params = append(params, fmt.Sprintf("host='%s'", d.Host))
+		} else {
+			splits := strings.Split(d.Host, ":")
 
-		if len(splits) > 0 && len(splits[0]) != 0 {
-			params = append(params, fmt.Sprintf("host='%s'", splits[0]))
-		}
-		if len(splits) > 1 && len(splits[1]) != 0 {
-			params = append(params, fmt.Sprintf("port='%s'", splits[1]))
+			if len(splits) > 0 && len(splits[0]) != 0 {
+				params = append(params, fmt.Sprintf("host='%s'", splits[0]))
+			}
+			if len(splits) > 1 && len(splits[1]) != 0 {
+				params = append(params, fmt.Sprintf("port='%s'", splits[1]))
+			}
 		}
 	}
+
+	if !d.SSL {
+		params = append(params, "sslmode=disable")
+	} else {
+		if !d.SSLSkipVerify {
+			params = append(params, "sslmode=verify-full")
+		} else {
+			params = append(params, "sslmode=require")
+		}
+	}
+
 	if specifyDB {
 		params = append(params, fmt.Sprintf("dbname='%s'", d.Name))
+	} else {
+		// This is a hack to allow DBCreate
+		params = append(params, "dbname='postgres'")
 	}
 	return strings.Join(params, " ")
 }

@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/aarondl/dbm/config"
-	"github.com/aarondl/paths"
 	"os"
 	"path/filepath"
+
+	"github.com/aarondl/dbm/config"
+	"github.com/aarondl/paths"
 
 	_ "code.google.com/p/go-sqlite/go1/sqlite3"
 	_ "github.com/go-sql-driver/mysql"
