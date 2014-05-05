@@ -3,14 +3,16 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"database/sql"
 	"fmt"
-	"github.com/aarondl/dbm/config"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/aarondl/dbm/config"
 )
 
 const errFmtNoMatch = `Error: Migrations are out of sync
@@ -92,19 +94,53 @@ func migrate(engine SqlEngine, migration string, rollback bool) {
 		fmt.Println(shortname)
 	}
 
-	if rollback {
-		if len(down) == 0 {
-			exitLn("Tried to rollback migration without down:", shortname)
-		}
-
-		runMigrationPart(engine, down)
-		err = engine.DeleteMigration(migFormat(migration))
-	} else {
-		runMigrationPart(engine, up)
-		err = engine.AddMigration(migFormat(migration))
+	if rollback && len(down) == 0 {
+		exitLn("Tried to rollback migration without down:", shortname)
 	}
+
+	tx, err := engine.Begin()
 	if err != nil {
-		exitLn("Error updating migration table:", err)
+		fmt.Print("Beginning transaction\t")
+		fmt.Println("[FAIL]")
+		exitLn("Failed to begin transaction:", err)
+	} else if *verbose {
+		fmt.Print("Beginning transaction\t")
+		fmt.Println("[SUCCESS]")
+	}
+
+	part := up
+	writeMigration := engine.AddMigration
+	if rollback {
+		part = down
+		writeMigration = engine.DeleteMigration
+	}
+
+	var txErr error
+
+	txErr = runMigrationPart(tx, part)
+	if txErr == nil {
+		txErr = writeMigration(tx, migFormat(migration))
+	}
+
+	if txErr != nil {
+		fmt.Print("Rollback transaction\t")
+		if err = tx.Rollback(); err != nil {
+			fmt.Println("[FAIL]")
+			fmt.Println("Failed to roll back:", err)
+			exitLn(txErr)
+		} else {
+			fmt.Println("[SUCCESS]")
+			exitLn(txErr)
+		}
+	} else {
+		if err = tx.Commit(); err != nil {
+			fmt.Print("Commit transaction\t")
+			fmt.Println("[FAIL]")
+			exitLn("Failed to commit:", err)
+		} else if *verbose {
+			fmt.Print("Commit transaction\t")
+			fmt.Println("[SUCCESS]")
+		}
 	}
 }
 
@@ -141,7 +177,7 @@ func getMigrationParts(filename, shortname string) ([]byte, []byte) {
 	return up.Bytes(), down.Bytes()
 }
 
-func runMigrationPart(engine SqlEngine, part []byte) {
+func runMigrationPart(tx *sql.Tx, part []byte) error {
 	var quote, dblQuote, backQuote bool
 
 	lastIndex := 0
@@ -189,14 +225,18 @@ func runMigrationPart(engine SqlEngine, part []byte) {
 				break
 			}
 			cmd := string(part[lastIndex : i+1])
-			if _, err := engine.Exec(cmd); err != nil {
-				exitf("Error in statement:\nStmt: %s\nErr: %v\n", cmd, err)
+			if _, err := tx.Exec(cmd); err != nil {
+				return fmt.Errorf(
+					"Running migration\t[FAIL]\nStmt: %s\nErr: %v\n",
+					strings.TrimSpace(cmd), err)
 			} else if *verbose {
 				fmt.Println(strings.TrimSpace(cmd))
 			}
 			lastIndex = i + 1
 		}
 	}
+
+	return nil
 }
 
 func getStep(args []string) int {

@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/aarondl/dbm/config"
-	"github.com/aarondl/paths"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/aarondl/dbm/config"
+	"github.com/aarondl/paths"
 )
 
 const (
@@ -24,14 +25,8 @@ const (
 )
 
 // migLayout defines the layout for an SQL file
-const migLayout = `
-` +
-	`// Up migration code goes here
-` +
-	_MIG_SEPERATOR +
-	`
-// Down migration code goes here
-`
+const migLayout = "// Up migration code goes here\n" +
+	_MIG_SEPERATOR + "\n// Down migration code goes here"
 
 var (
 	rgxMigrate        = regexp.MustCompile(`^([a-z]|[a-z][a-z_]*[a-z])$`)

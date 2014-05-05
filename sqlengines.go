@@ -60,12 +60,14 @@ type SqlEngine interface {
 	Open() error
 	// Close the connection to the database.
 	Close() error
+	// Begin a transaction. No-op if the engine doesn't support it.
+	Begin() (*sql.Tx, error)
 	// CreateMigrationsTable adds a tracking table for migrations.
 	CreateMigrationsTable() error
 	// AddMigration adds a tracking record for a migration.
-	AddMigration(mig string) error
+	AddMigration(tx *sql.Tx, mig string) error
 	// DeleteMigration removes a tracking record for a migration.
-	DeleteMigration(mig string) error
+	DeleteMigration(tx *sql.Tx, mig string) error
 	// Exec executes a statement against the database.
 	Exec(stmt string, args ...interface{}) (sql.Result, error)
 	// Query executes a query against the database.
@@ -119,12 +121,12 @@ func (m *MySQL) CreateMigrationsTable() error {
 	return createTrackTable(m)
 }
 
-func (m *MySQL) AddMigration(mig string) error {
-	return insertTrackTable(m, sqlAddMig, mig)
+func (m *MySQL) AddMigration(tx *sql.Tx, mig string) error {
+	return insertTrackTable(tx, sqlAddMig, mig)
 }
 
-func (m *MySQL) DeleteMigration(mig string) error {
-	return deleteTrackTable(m, sqlDelMig, mig)
+func (m *MySQL) DeleteMigration(tx *sql.Tx, mig string) error {
+	return deleteTrackTable(tx, sqlDelMig, mig)
 }
 
 type Postgres struct {
@@ -174,12 +176,12 @@ func (p *Postgres) CreateMigrationsTable() error {
 	return createTrackTable(p)
 }
 
-func (p *Postgres) AddMigration(mig string) error {
-	return insertTrackTable(p, sqlAddMigPQ, mig)
+func (p *Postgres) AddMigration(tx *sql.Tx, mig string) error {
+	return insertTrackTable(tx, sqlAddMigPQ, mig)
 }
 
-func (p *Postgres) DeleteMigration(mig string) error {
-	return deleteTrackTable(p, sqlDelMigPQ, mig)
+func (p *Postgres) DeleteMigration(tx *sql.Tx, mig string) error {
+	return deleteTrackTable(tx, sqlDelMigPQ, mig)
 }
 
 type Sqlite3 struct {
@@ -217,12 +219,12 @@ func (s *Sqlite3) CreateMigrationsTable() error {
 	return createTrackTable(s)
 }
 
-func (s *Sqlite3) AddMigration(mig string) error {
-	return insertTrackTable(s, sqlAddMig, mig)
+func (s *Sqlite3) AddMigration(tx *sql.Tx, mig string) error {
+	return insertTrackTable(tx, sqlAddMig, mig)
 }
 
-func (s *Sqlite3) DeleteMigration(mig string) error {
-	return deleteTrackTable(s, sqlDelMig, mig)
+func (s *Sqlite3) DeleteMigration(tx *sql.Tx, mig string) error {
+	return deleteTrackTable(tx, sqlDelMig, mig)
 }
 
 func createTrackTable(engine SqlEngine) error {
@@ -236,12 +238,12 @@ func createTrackTable(engine SqlEngine) error {
 	return nil
 }
 
-func insertTrackTable(engine SqlEngine, sql, mig string) error {
-	_, err := engine.Exec(fmt.Sprintf(sql, _MIG_TABLE_NAME), mig)
+func insertTrackTable(tx *sql.Tx, sql, mig string) error {
+	_, err := tx.Exec(fmt.Sprintf(sql, _MIG_TABLE_NAME), mig)
 	return err
 }
 
-func deleteTrackTable(engine SqlEngine, sql, mig string) error {
-	_, err := engine.Exec(fmt.Sprintf(sql, _MIG_TABLE_NAME), mig)
+func deleteTrackTable(tx *sql.Tx, sql, mig string) error {
+	_, err := tx.Exec(fmt.Sprintf(sql, _MIG_TABLE_NAME), mig)
 	return err
 }
