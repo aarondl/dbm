@@ -31,7 +31,7 @@ priveleges beforehand or you're using the root user WHICH YOU SHOULD NOT DO)_
 
 If we decide that the last two migrations were no good, we can roll them back:
 ```bash
-dbm rollback -v 2 # Passing -v shows us the sql being run.
+dbm -v rollback 2 # Passing -v shows us the sql being run.
 ```
 
 ## Connect from Client application
@@ -54,10 +54,11 @@ Client file:
 package main
 
 import (
-	"github.com/aarondl/dbm/config"
 	"log"
-	_ "github.com/go-sql-driver/mysql"
 	"database/sql"
+
+	"github.com/aarondl/dbm/config"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 func main() {
@@ -103,16 +104,17 @@ DROP TABLE my_table;
 ## Detailed Usage
 
 ```text
-dbm command [flags] commandArgs
+dbm [flags] command commandArgs
 Commands:
- init                    - Create a basic configuration file.
- new      [name]...      - Create a new named migration.
- migrate  [step]         - Migrate [step] forward, migrate all if no step number given.
- rollback [step]         - Rollback [step] backward, rollback most recent if no step number given.
- create                  - Create the configured database.
- drop                    - Drop the configured database.
+    init                    - Create a basic configuration file.
+    new      [name]...      - Create a new named migration.
+    migrate  [step]         - Migrate [step] forward, migrate all if no step number given.
+    rollback [step]         - Rollback [step] backward, rollback all if no step number given.
+    create                  - Create the configured database.
+    drop                    - Drop the configured database.
+    trackdb                 - Create only the migration table.
 Flags:
- -env=development: Set the enviroment to choose from the config file.
- -isroot=false: If true use cwd as root, otherwise find VCS root.
- -v=false: Controls verbose output.
+    -env=development: Set the enviroment to choose from the config file.
+    -isroot=false: If true use cwd as root, otherwise find VCS root.
+    -v=false: Controls verbose output.
 ```

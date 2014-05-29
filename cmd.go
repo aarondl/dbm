@@ -9,27 +9,29 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/aarondl/dbm/config"
-	"github.com/aarondl/paths"
 	"os"
 	"regexp"
+
+	"github.com/aarondl/dbm/config"
+	"github.com/aarondl/paths"
 )
 
 const (
 	_DATA_DIR = "db"
 )
 
-const usageDesc = `dbm command [flags] commandArgs
+const usageDesc = `dbm [flags] command commandArgs
 Commands:
     init                    - Create a basic configuration file.
     new      [name]...      - Create a new named migration.
     migrate  [step]         - Migrate [step] forward, migrate all if no step number given.
     rollback [step]         - Rollback [step] backward, rollback all if no step number given.
     create                  - Create the configured database.
-    drop                    - Drop the configured database.`
+    drop                    - Drop the configured database.
+    trackdb                 - Create only the migration table.`
 
 var (
-	flagset = flag.NewFlagSet("flags", flag.ExitOnError)
+	flagset = flag.NewFlagSet("dbm", flag.ExitOnError)
 	isRoot  = flagset.Bool("isroot", false,
 		`If true use cwd as root, otherwise find VCS root.`)
 	environ = flagset.String("env", "development",
@@ -51,6 +53,7 @@ var commands = map[string]func([]string){
 	"rollback": doRollback,
 	"create":   createDatabase,
 	"drop":     dropDatabase,
+	"trackdb":  trackdb,
 	"init":     initialize,
 }
 
@@ -61,13 +64,20 @@ func main() {
 	if len(cmdArgs) == 0 {
 		printUsage()
 	}
+
+	flagset.Usage = printUsage
+	flagset.Parse(cmdArgs)
+	cmdArgs = flagset.Args()
+
+	if len(cmdArgs) == 0 {
+		printUsage()
+	}
+
 	cmd := cmdArgs[0]
 	if _, ok := commands[cmd]; !ok {
 		printUsage()
 	}
-
-	flagset.Parse(cmdArgs[1:]) // Parse flag arguments.
-	cmdArgs = flagset.Args()
+	cmdArgs = cmdArgs[1:]
 
 	// Verify environment
 	if !rgxEnviron.MatchString(*environ) {
