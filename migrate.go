@@ -25,6 +25,11 @@ The following migration files are missing:`
 
 var rgxUpDown = regexp.MustCompile(`(?s)(.*?)(?:\s` + _MIG_SEPERATOR + `\s(.*))?`)
 
+// sqlExecer exists only for test stubbing.
+type sqlExecer interface {
+	Exec(string, ...interface{}) (sql.Result, error)
+}
+
 func doMigrations(args []string) {
 	engine, files, done, err := getMigrationData()
 	defer engine.Close()
@@ -177,7 +182,7 @@ func getMigrationParts(filename, shortname string) ([]byte, []byte) {
 	return up.Bytes(), down.Bytes()
 }
 
-func runMigrationPart(tx *sql.Tx, part []byte) error {
+func runMigrationPart(exec sqlExecer, part []byte) error {
 	var quote, dblQuote, backQuote bool
 
 	lastIndex := 0
@@ -225,7 +230,7 @@ func runMigrationPart(tx *sql.Tx, part []byte) error {
 				break
 			}
 			cmd := string(part[lastIndex : i+1])
-			if _, err := tx.Exec(cmd); err != nil {
+			if _, err := exec.Exec(cmd); err != nil {
 				return fmt.Errorf(
 					"Running migration\t[FAIL]\nStmt: %s\nErr: %v\n",
 					strings.TrimSpace(cmd), err)

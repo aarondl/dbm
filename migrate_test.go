@@ -5,31 +5,17 @@ import (
 	. "testing"
 )
 
-type fakeEngine struct {
+type fakeTx struct {
 	cmds []string
 }
 
-func makeEngine() *fakeEngine {
-	return &fakeEngine{
+func makeFakeTx() *fakeTx {
+	return &fakeTx{
 		make([]string, 0),
 	}
 }
 
-func (f *fakeEngine) CreateMigrationsTable() error   { return nil }
-func (f *fakeEngine) AddMigration(_ string) error    { return nil }
-func (f *fakeEngine) DeleteMigration(_ string) error { return nil }
-func (f *fakeEngine) Open() error                    { return nil }
-func (f *fakeEngine) Close() error                   { return nil }
-func (f *fakeEngine) CreateDB() error                { return nil }
-func (f *fakeEngine) DropDB() error                  { return nil }
-
-func (f *fakeEngine) Query(_ string, _ ...interface{}) (*sql.Rows, error) {
-	return nil, nil
-}
-
-func (f *fakeEngine) Use() error { return nil }
-
-func (f *fakeEngine) Exec(cmd string, args ...interface{}) (sql.Result, error) {
+func (f *fakeTx) Exec(cmd string, args ...interface{}) (sql.Result, error) {
 	f.cmds = append(f.cmds, cmd)
 	return nil, nil
 }
@@ -66,20 +52,20 @@ var partTests = []struct {
 
 func Test_RunMigrationPart(t *T) {
 	for _, test := range partTests {
-		eng := makeEngine()
-		runMigrationPart(eng, []byte(test.Part))
+		tx := makeFakeTx()
+		runMigrationPart(tx, []byte(test.Part))
 
-		if len(eng.cmds) != len(test.Expect) {
+		if len(tx.cmds) != len(test.Expect) {
 			t.Errorf("Test failed: %#v", test.Part)
 			t.Errorf("Expect: %#v\n", test.Expect)
-			t.Errorf("Result: %#v\n", eng.cmds)
+			t.Errorf("Result: %#v\n", tx.cmds)
 		}
 
-		for i := 0; i < len(eng.cmds); i++ {
-			if eng.cmds[i] != test.Expect[i] {
+		for i := 0; i < len(tx.cmds); i++ {
+			if tx.cmds[i] != test.Expect[i] {
 				t.Errorf("Test failed: %#v", test.Part)
 				t.Errorf("Expect: %#v\n", test.Expect[i])
-				t.Errorf("Result: %#v\n", eng.cmds[i])
+				t.Errorf("Result: %#v\n", tx.cmds[i])
 			}
 		}
 	}
